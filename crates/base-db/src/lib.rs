@@ -87,25 +87,11 @@ where
 }
 
 /// Default LRU capacity for file text caching.
-///
-/// Increased from 16 to 32 to better handle large projects with many open files.
-/// This helps maintain cached file content for frequently accessed files,
-/// reducing disk I/O during navigation and editing.
-pub const DEFAULT_FILE_TEXT_LRU_CAP: u16 = 32;
-
+pub const DEFAULT_FILE_TEXT_LRU_CAP: u16 = 16;
 /// Default LRU capacity for parse tree caching.
-///
-/// Increased from 128 to 256 to accommodate larger projects that may have
-/// 200+ open files. Parse trees are expensive to compute, so caching more
-/// of them improves responsiveness during navigation.
-pub const DEFAULT_PARSE_LRU_CAP: u16 = 256;
-
+pub const DEFAULT_PARSE_LRU_CAP: u16 = 128;
 /// Default LRU capacity for borrow checking results.
-///
-/// Increased from 2024 to 4096 because borrow checking is one of the most
-/// expensive operations. Large projects with many functions benefit from
-/// a larger cache, and memory is relatively cheap compared to recomputation.
-pub const DEFAULT_BORROWCK_LRU_CAP: u16 = 4096;
+pub const DEFAULT_BORROWCK_LRU_CAP: u16 = 2024;
 
 #[derive(Debug, Default)]
 pub struct Files {

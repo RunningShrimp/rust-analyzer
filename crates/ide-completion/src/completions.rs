@@ -73,19 +73,6 @@ impl Builder {
 
 impl Completions {
     fn add(&mut self, item: CompletionItem) {
-        if self.buf.iter().any(|existing| {
-            existing.label.primary == item.label.primary
-                && existing.label.detail_left == item.label.detail_left
-                && existing.label.detail_right == item.label.detail_right
-                && existing.source_range == item.source_range
-                && existing.kind == item.kind
-                && existing.lookup == item.lookup
-                && existing.import_to_add == item.import_to_add
-                && existing.deprecated == item.deprecated
-                && existing.trigger_call_info == item.trigger_call_info
-        }) {
-            return;
-        }
         self.buf.push(item)
     }
 

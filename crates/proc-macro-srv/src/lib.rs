@@ -208,31 +208,31 @@ impl ProcMacroSrv<'_> {
     }
 
     fn expander(&self, path: &Utf8Path) -> Result<Arc<dylib::Expander>, String> {
-        let create_expander = || -> Result<Arc<dylib::Expander>, String> {
-            let expander = dylib::Expander::new(&self.temp_dir, path)
-                .map_err(|err| format!("Cannot create expander for {path}: {err}"))?;
-            Ok(Arc::new(expander))
-        };
-
         let path_buf = path.to_path_buf();
 
-        // Check if we need to refresh the expander based on file modification time
-        let needs_refresh = self
-            .expanders
-            .get(&path_buf)
-            .map(|entry| {
-                let time = fs::metadata(&path_buf).and_then(|it| it.modified()).ok();
-                time != Some(entry.value().modified_time())
-            })
-            .unwrap_or(true);
-
-        if needs_refresh {
-            let expander = create_expander()?;
-            self.expanders.insert(path_buf.clone(), expander.clone());
-            Ok(expander)
-        } else {
-            // Safe to unwrap because we just checked it exists
-            Ok(self.expanders.get(&path_buf).unwrap().value().clone())
+        // Use entry API for atomic check-then-insert to avoid race conditions
+        // when multiple threads try to load the same proc-macro simultaneously.
+        match self.expanders.entry(path_buf) {
+            dashmap::mapref::entry::Entry::Vacant(vacant) => {
+                let expander = dylib::Expander::new(&self.temp_dir, path)
+                    .map_err(|err| format!("Cannot create expander for {path}: {err}"))?;
+                let expander = Arc::new(expander);
+                vacant.insert(expander.clone());
+                Ok(expander)
+            }
+            dashmap::mapref::entry::Entry::Occupied(mut occupied) => {
+                let time = fs::metadata(path).and_then(|it| it.modified()).ok();
+                let needs_refresh = time != Some(occupied.get().modified_time());
+                if needs_refresh {
+                    let expander = dylib::Expander::new(&self.temp_dir, path)
+                        .map_err(|err| format!("Cannot create expander for {path}: {err}"))?;
+                    let expander = Arc::new(expander);
+                    occupied.insert(expander.clone());
+                    Ok(expander)
+                } else {
+                    Ok(occupied.get().clone())
+                }
+            }
         }
     }
 }

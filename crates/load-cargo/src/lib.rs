@@ -10,7 +10,7 @@ extern crate rustc_driver as _;
 
 use std::{any::Any, collections::hash_map::Entry, mem, path::Path, sync};
 
-use crossbeam_channel::{Receiver, unbounded};
+use crossbeam_channel::{Receiver, bounded};
 use hir_expand::{
     db::ExpandDatabase,
     proc_macro::{
@@ -30,6 +30,7 @@ use proc_macro_api::{
 };
 use project_model::{CargoConfig, PackageRoot, ProjectManifest, ProjectWorkspace};
 use span::{Span, SpanAnchor, SyntaxContext};
+use std::thread::available_parallelism;
 use tt::{TextRange, TextSize};
 use vfs::{
     AbsPath, AbsPathBuf, FileId, VfsPath,
@@ -100,7 +101,9 @@ pub fn load_workspace_into_db(
     load_config: &LoadCargoConfig,
     db: &mut RootDatabase,
 ) -> anyhow::Result<(vfs::Vfs, Option<ProcMacroClient>)> {
-    let (sender, receiver) = unbounded();
+    // Use bounded channel to prevent unbounded memory growth when multiple
+    // LSP instances load workspaces concurrently (e.g., in multi-project scenarios).
+    let (sender, receiver) = bounded(16);
     let mut vfs = vfs::Vfs::default();
     let mut loader = {
         let loader = vfs_notify::NotifyHandle::spawn(sender);

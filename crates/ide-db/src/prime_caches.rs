@@ -78,12 +78,10 @@ pub fn parallel_prime_caches(
         sema_work_sender,
         progress_receiver,
     ) = {
-        // Use bounded channels to prevent unbounded memory growth in large projects.
-        // Capacity is based on worker thread count to provide natural backpressure.
-        // Work channels: threads * 2 allows each worker to have pending work.
-        // Progress channel: threads * 4 allows multiple progress updates per worker.
-        let work_channel_cap = num_worker_threads.saturating_mul(2).max(4);
-        let progress_channel_cap = num_worker_threads.saturating_mul(4).max(8);
+        // Increased capacity (threads * 8) to handle bursts of newly-unblocked
+        // dependent crates without blocking during parallel cache priming.
+        let work_channel_cap = num_worker_threads.saturating_mul(8).max(32);
+        let progress_channel_cap = num_worker_threads.saturating_mul(8).max(32);
 
         let (progress_sender, progress_receiver) = crossbeam_channel::bounded(progress_channel_cap);
         let (def_map_work_sender, def_map_work_receiver) =
